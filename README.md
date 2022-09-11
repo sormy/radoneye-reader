@@ -13,7 +13,7 @@ pip3 install pygatt paho-mqtt
 Usage:
 
 ```
-radon-eye-reader.py --help
+radoneye-reader.py --help
 usage: radon-eye-reader.py [-h] [--timeout TIMEOUT] [--retries RETRIES] [--debug] [--daemon]
                            [--mqtt] [--discovery] [--mqtt-hostname MQTT_HOSTNAME]
                            [--mqtt-port MQTT_PORT] [--mqtt-username MQTT_USERNAME]

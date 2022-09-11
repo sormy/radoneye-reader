@@ -54,7 +54,8 @@ options:
   --discovery-retain    retain discovery events
   --interval INTERVAL   device poll interval in seconds
   --expire-after EXPIRE_AFTER
-                        Defines the number of seconds after the sensor's state expires, if it's not updated
+                        Defines the number of seconds after the sensor's state expires,
+                        if it's not updated
   --force-update        Sends update events even if the value hasn't changed
 ```
 

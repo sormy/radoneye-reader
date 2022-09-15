@@ -108,6 +108,8 @@ nano /etc/bluetooth/main.conf
 
 [GATT]
 Cache=no
+
+systemctl bluetooth restart
 ```
 
 ## Inspiration

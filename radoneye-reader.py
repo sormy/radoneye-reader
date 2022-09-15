@@ -7,6 +7,7 @@ import logging
 import os
 import socket
 import sys
+import traceback
 import paho.mqtt.client as mqtt
 from bleak import BleakClient
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -323,16 +324,19 @@ class RadonEyeReaderApp:
                         attempt = 0
                     except Exception as error:
                         await self.handle_sensor_error(address, error, attempt)
+                        traceback.print_exc(file=sys.stderr)
                         attempt = attempt + 1
 
-                self.print_sensor_data(data)
+                if data is not None:
+                    self.print_sensor_data(data)
 
-                if self.args.mqtt and (data is not None):
-                    if self.args.discovery:
-                        try:
-                            self.publish_discovery_event(data)
-                        except Exception as error:
-                            self.handle_discovery_event_error(address, error)
+                if data is not None and self.args.mqtt and self.args.discovery:
+                    try:
+                        self.publish_discovery_event(data)
+                    except Exception as error:
+                        self.handle_discovery_event_error(address, error)
+
+                if data is not None and self.args.mqtt:
                     try:
                         self.publish_device_event(data)
                     except Exception as error:

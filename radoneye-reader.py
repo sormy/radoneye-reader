@@ -7,10 +7,9 @@ import logging
 import os
 import socket
 import sys
-import time
 import paho.mqtt.client as mqtt
 from bleak import BleakClient
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from struct import unpack
 from string import Template
 
@@ -113,16 +112,21 @@ class RadonEyeReaderApp:
             logging.basicConfig(level=logging.DEBUG)
 
     def parse_args(self):
-        parser = ArgumentParser(description="Reads Ecosense RadonEye device sensor data")
+        parser = ArgumentParser(
+            description="Reads Ecosense RadonEye device sensor data",
+            formatter_class=ArgumentDefaultsHelpFormatter,
+        )
         parser.add_argument("addresses", metavar="addr", nargs="+", help="device address")
         parser.add_argument(
-            "--connect-timeout", type=int, default=10, help="device connect timeout"
+            "--connect-timeout", type=int, default=10, help="device connect timeout in seconds"
         )
         parser.add_argument(
-            "--read-timeout", type=int, default=5, help="device sendor data read timeout"
+            "--read-timeout", type=int, default=5, help="device sendor data read timeout in seconds"
         )
-        parser.add_argument("--reconnect-delay", type=int, default=1, help="device reconnect delay")
-        parser.add_argument("--retries", type=int, default=5, help="device read attempt count")
+        parser.add_argument(
+            "--reconnect-delay", type=int, default=1, help="device reconnect delay in seconds"
+        )
+        parser.add_argument("--attempts", type=int, default=5, help="device read attempt count")
         parser.add_argument("--debug", action="store_true", help="debug mode")
         parser.add_argument("--daemon", action="store_true", help="run continuosly")
         parser.add_argument(
@@ -176,7 +180,7 @@ class RadonEyeReaderApp:
             "--restart-bluetooth-delay",
             type=int,
             default=10,
-            help="Delay after bluetooth stack has been restarted",
+            help="Delay in seconds after bluetooth stack has been restarted",
         )
         parser.add_argument(
             "--restart-bluetooth-cmd",
@@ -282,7 +286,6 @@ class RadonEyeReaderApp:
             flush=True,
         )
         os.system(self.args.restart_bluetooth_cmd)
-        time.sleep(self.args.restart_bluetooth_delay)
 
     async def run(self):
         if self.args.mqtt:
@@ -294,7 +297,7 @@ class RadonEyeReaderApp:
 
                 data = None
 
-                attempt = self.args.retries
+                attempt = self.args.attempts
                 while attempt != 0:
                     try:
                         data = await reader.read_sensor_data()
@@ -302,10 +305,14 @@ class RadonEyeReaderApp:
                         self.print_sensor_data(data)
                     except Exception as error:
                         self.handle_sensor_error(address, error)
-                        if self.args.restart_bluetooth:
-                            self.restart_bluetooth_stack()
-                        time.sleep(self.args.reconnect_delay)
                         attempt = attempt - 1
+                        if attempt != 0:
+                            # make last attempt to restart bluetooth stack if restart is enabled
+                            if attempt == 1 and self.args.restart_bluetooth:
+                                self.restart_bluetooth_stack()
+                                await asyncio.sleep(self.args.restart_bluetooth_delay)
+                            else:
+                                await asyncio.sleep(self.args.reconnect_delay)
 
                 if self.args.mqtt and (data is not None):
                     if self.args.discovery:
@@ -319,7 +326,7 @@ class RadonEyeReaderApp:
                         self.handle_device_event_error(address, error)
 
             if self.args.daemon:
-                time.sleep(self.args.interval)
+                await asyncio.sleep(self.args.interval)
             else:
                 break
 

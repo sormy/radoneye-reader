@@ -76,18 +76,24 @@ Read continuosly and publish to MQTT with Home Assistant auto discovery:
 ./radoneye-reader.py --mqtt --discovery --daemon <device1_addr> <device2_addr> <...>
 ```
 
-RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really useful.
+RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really
+useful.
 
 ## Inspiration
 
-This script is inspired by some examples located here:
+This script is inspired by these examples:
 
-- https://community.home-assistant.io/t/radoneye-ble-interface/94962/121
-- https://github.com/merbanan/rtl_433/blob/master/examples/rtl_433_mqtt_hass.py
+- https://community.home-assistant.io/t/radoneye-ble-interface/94962/121 (working code sample for
+  the newest RD200N)
+- https://github.com/merbanan/rtl_433/blob/master/examples/rtl_433_mqtt_hass.py (example of hass
+  integration using mqtt)
+- https://github.com/ceandre/radonreader (reader for older devices RD200)
 
 ## Device Support
 
-The application was tested with RD200N model (bluetooth only) manufactured in 2022.
+The application was tested with RD200N model (bluetooth only) manufactured in 2022/Q2. Support for
+older devices can be ported from https://github.com/ceandre/radonreader but I can't test it because
+I don't have these devices.
 
 ## Contribution
 

@@ -121,6 +121,7 @@ class RadonEyeReaderApp:
         parser.add_argument(
             "--read-timeout", type=int, default=5, help="device sendor data read timeout"
         )
+        parser.add_argument("--reconnect-delay", type=int, default=1, help="device reconnect delay")
         parser.add_argument("--retries", type=int, default=5, help="device read attempt count")
         parser.add_argument("--debug", action="store_true", help="debug mode")
         parser.add_argument("--daemon", action="store_true", help="run continuosly")
@@ -170,6 +171,12 @@ class RadonEyeReaderApp:
             "--restart-bluetooth",
             action="store_true",
             help="Try to restart bluetooth stack on bluetooth error",
+        )
+        parser.add_argument(
+            "--restart-bluetooth-delay",
+            type=int,
+            default=10,
+            help="Delay after bluetooth stack has been restarted",
         )
         parser.add_argument(
             "--restart-bluetooth-cmd",
@@ -268,6 +275,15 @@ class RadonEyeReaderApp:
             flush=True,
         )
 
+    def restart_bluetooth_stack(self):
+        print(
+            "WARNING: Restarting bluetooth stack...",
+            file=sys.stderr,
+            flush=True,
+        )
+        os.system(self.args.restart_bluetooth_cmd)
+        time.sleep(self.args.restart_bluetooth_delay)
+
     async def run(self):
         if self.args.mqtt:
             self.mqtt_init()
@@ -287,12 +303,8 @@ class RadonEyeReaderApp:
                     except Exception as error:
                         self.handle_sensor_error(address, error)
                         if self.args.restart_bluetooth:
-                            print(
-                                "WARNING: Restarting bluetooth stack...",
-                                file=sys.stderr,
-                                flush=True,
-                            )
-                            os.system(self.args.restart_bluetooth_cmd)
+                            self.restart_bluetooth_stack()
+                        time.sleep(self.args.reconnect_delay)
                         attempt = attempt - 1
 
                 if self.args.mqtt and (data is not None):

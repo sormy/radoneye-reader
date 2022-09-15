@@ -19,13 +19,15 @@ pip3 install asyncio bleak paho-mqtt
 ## Usage
 
 ```
-radoneye-reader.py --help
-usage: radoneye-reader.py [-h] [--connect-timeout CONNECT_TIMEOUT] [--read-timeout READ_TIMEOUT] [--retries RETRIES]
-                          [--debug] [--daemon] [--mqtt] [--discovery] [--mqtt-hostname MQTT_HOSTNAME]
-                          [--mqtt-port MQTT_PORT] [--mqtt-username MQTT_USERNAME] [--mqtt-password MQTT_PASSWORD]
+$ ./radoneye-reader.py --help
+usage: radoneye-reader.py [-h] [--connect-timeout CONNECT_TIMEOUT] [--read-timeout READ_TIMEOUT]
+                          [--reconnect-delay RECONNECT_DELAY] [--retries RETRIES] [--debug] [--daemon]
+                          [--mqtt] [--discovery] [--mqtt-hostname MQTT_HOSTNAME] [--mqtt-port MQTT_PORT]
+                          [--mqtt-username MQTT_USERNAME] [--mqtt-password MQTT_PASSWORD]
                           [--mqtt-ca-cert MQTT_CA_CERT] [--device-topic DEVICE_TOPIC]
                           [--discovery-topic DISCOVERY_TOPIC] [--device-retain] [--discovery-retain]
-                          [--interval INTERVAL] [--expire-after EXPIRE_AFTER] [--force-update] [--restart-bluetooth]
+                          [--interval INTERVAL] [--expire-after EXPIRE_AFTER] [--force-update]
+                          [--restart-bluetooth] [--restart-bluetooth-delay RESTART_BLUETOOTH_DELAY]
                           [--restart-bluetooth-cmd RESTART_BLUETOOTH_CMD]
                           addr [addr ...]
 
@@ -40,6 +42,8 @@ optional arguments:
                         device connect timeout
   --read-timeout READ_TIMEOUT
                         device sendor data read timeout
+  --reconnect-delay RECONNECT_DELAY
+                        device reconnect delay
   --retries RETRIES     device read attempt count
   --debug               debug mode
   --daemon              run continuosly
@@ -63,9 +67,12 @@ optional arguments:
   --discovery-retain    retain discovery events
   --interval INTERVAL   device poll interval in seconds
   --expire-after EXPIRE_AFTER
-                        Defines the number of seconds after the sensor's state expires, if it's not updated
+                        Defines the number of seconds after the sensor's state expires, if it's not
+                        updated
   --force-update        Sends update events even if the value hasn't changed
   --restart-bluetooth   Try to restart bluetooth stack on bluetooth error
+  --restart-bluetooth-delay RESTART_BLUETOOTH_DELAY
+                        Delay after bluetooth stack has been restarted
   --restart-bluetooth-cmd RESTART_BLUETOOTH_CMD
                         Command to execute when bluetooth stack restart is needed
 ```
@@ -89,6 +96,19 @@ Read continuosly and publish to MQTT with Home Assistant auto discovery:
 
 RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really
 useful.
+
+## Troubleshooting
+
+Q: Radon level reads are the same every time until application is restarted on Linux.
+
+A: Evaluate if you can use `--restart-bluetooth` option, otherwise disable bluez caching:
+
+```
+nano /etc/bluetooth/main.conf
+
+[GATT]
+Cache=no
+```
 
 ## Inspiration
 

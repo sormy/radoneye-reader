@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import datetime
 import json
 import logging
@@ -8,40 +9,39 @@ import socket
 import sys
 import time
 import paho.mqtt.client as mqtt
-from pygatt import GATTToolBackend
+from bleak import BleakClient
 from argparse import ArgumentParser
 from struct import unpack
 from string import Template
 
 
 class RadonEyeReader:
-    SUB_SENSOR_DATA = "00001525-0000-1000-8000-00805f9b34fb"
-    CHARACTERISTIC_SENSOR_DATA = 0x002A
-    COMMAND_SENSOR_DATA = bytearray([0x40])
-    MTU_DEFAULT = 507
+    UUID_COMMAND = "00001524-0000-1000-8000-00805f9b34fb"
+    UUID_CURRENT = "00001525-0000-1000-8000-00805f9b34fb"
 
-    def __init__(self, logger, adapter, addr, timeout):
-        self.device = None
-        self.logger = logger
-        self.adapter = adapter
-        self.addr = addr
-        self.timeout = timeout
+    COMMAND_CURRENT = 0x40
 
-    def read_short(self, data, start):
+    VENDOR = "Ecosense"
+    DEVICE = "RadonEye"
+
+    def __init__(self, address: str, connect_timeout: int, read_timeout: int):
+        self.address = address
+        self.connect_timeout = connect_timeout
+        self.read_timeout = read_timeout
+
+    def read_short(self, data: bytearray, start: int) -> int:
         return unpack("<H", data[slice(start, start + 2)])[0]
 
-    def read_str(self, data, start, length):
+    def read_str(self, data: bytearray, start: int, length: int) -> str:
         return data[slice(start, start + length)].decode()
 
-    def to_pci_l(self, value_bq_m3):
+    def to_pci_l(self, value_bq_m3: int) -> float:
         return round(value_bq_m3 / 37, 2)
 
-    def parse_raw_value(self, data):
+    def parse_raw_data(self, data: bytearray) -> dict:
         timestamp = str(datetime.datetime.now())
         serial = self.read_str(data, 8, 3) + self.read_str(data, 2, 6) + self.read_str(data, 11, 4)
         model = self.read_str(data, 16, 6)
-        vendor = "Ecosense"
-        device = "RadonEye"
         version = self.read_str(data, 22, 6)
         latest_bq_m3 = self.read_short(data, 33)
         latest_pci_l = self.to_pci_l(latest_bq_m3)
@@ -55,11 +55,11 @@ class RadonEyeReader:
         return {
             "timestamp": timestamp,
             "serial": serial,
-            "address": self.addr,
-            "vendor": vendor,
+            "address": self.address,
+            "vendor": self.VENDOR,
             "model": model,
             "version": version,
-            "device": device,
+            "device": self.DEVICE,
             "latest_bq_m3": latest_bq_m3,
             "latest_pci_l": latest_pci_l,
             "day_avg_bq_m3": day_avg_bq_m3,
@@ -70,65 +70,17 @@ class RadonEyeReader:
             "peak_pci_l": peak_pci_l,
         }
 
-    def connect(self):
-        self.device = self.adapter.connect(self.addr, timeout=self.timeout)
-        self.device.exchange_mtu(self.MTU_DEFAULT)
+    async def read_sensor_data(self) -> dict:
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
 
-    def subscribe(self, callback):
-        def handle_sensor(handle, raw_data):
-            try:
-                data = self.parse_raw_value(raw_data)
-                self.logger.info("device {}: data (hex): {}".format(self.addr, raw_data.hex()))
-                self.logger.info("device {}: data: {}".format(self.addr, json.dumps(data)))
-                callback(None, data)
-            except Exception as error:
-                self.logger.error("device {}: data processing error: {}".format(self.addr, error))
-                callback(error, None)
+        def callback(sender: int, data: bytearray):
+            future.set_result(self.parse_raw_data(data))
 
-        self.device.subscribe(
-            self.SUB_SENSOR_DATA,
-            callback=handle_sensor,
-            indication=False,
-            wait_for_response=False,
-        )
-
-    def unsubscribe(self):
-        self.device.unsubscribe(self.SUB_SENSOR_DATA)
-
-    def request(self):
-        self.device.char_write_handle(
-            self.CHARACTERISTIC_SENSOR_DATA, self.COMMAND_SENSOR_DATA, wait_for_response=False
-        )
-
-    def read_sensor_data(self):
-        try:
-            self.adapter.start()
-
-            result_data = None
-            result_error = None
-            completed = False
-
-            def handle_sensor_data(error, data):
-                nonlocal completed, result_data, result_error
-                result_data = data
-                result_error = error
-                completed = True
-
-            self.connect()
-            self.subscribe(handle_sensor_data)
-            self.request()
-
-            while not completed:
-                time.sleep(1)
-
-            self.unsubscribe()
-
-            if result_error is not None:
-                raise result_error
-
-            return result_data
-        finally:
-            self.adapter.stop()
+        async with BleakClient(self.address, timout=self.connect_timeout) as client:
+            await client.start_notify(self.UUID_CURRENT, callback)
+            await client.write_gatt_char(self.UUID_COMMAND, bytearray([self.COMMAND_CURRENT]))
+            return await asyncio.wait_for(future, timeout=self.read_timeout)
 
 
 class RadonEyeReaderApp:
@@ -157,17 +109,18 @@ class RadonEyeReaderApp:
 
     def __init__(self):
         self.args = self.parse_args()
-        self.logger = logging.getLogger()
-        self.adapter = GATTToolBackend()
-        self.mqttc = mqtt.Client()
-
         if self.args.debug:
             logging.basicConfig(level=logging.DEBUG)
 
     def parse_args(self):
         parser = ArgumentParser(description="Reads Ecosense RadonEye device sensor data")
         parser.add_argument("addresses", metavar="addr", nargs="+", help="device address")
-        parser.add_argument("--timeout", type=int, default=5, help="device connect timeout")
+        parser.add_argument(
+            "--connect-timeout", type=int, default=10, help="device connect timeout"
+        )
+        parser.add_argument(
+            "--read-timeout", type=int, default=5, help="device sendor data read timeout"
+        )
         parser.add_argument("--retries", type=int, default=5, help="device read attempt count")
         parser.add_argument("--debug", action="store_true", help="debug mode")
         parser.add_argument("--daemon", action="store_true", help="run continuosly")
@@ -213,6 +166,17 @@ class RadonEyeReaderApp:
             action="store_true",
             help="Sends update events even if the value hasn't changed",
         )
+        parser.add_argument(
+            "--restart-bluetooth",
+            action="store_true",
+            help="Try to restart bluetooth stack on bluetooth error",
+        )
+        parser.add_argument(
+            "--restart-bluetooth-cmd",
+            type=str,
+            default="service bluetooth restart",
+            help="Command to execute when bluetooth stack restart is needed",
+        )
 
         args = parser.parse_args()
 
@@ -228,6 +192,8 @@ class RadonEyeReaderApp:
 
     def mqtt_init(self):
         if self.args.mqtt:
+            self.mqttc = mqtt.Client("radoneye_{hostname}".format(hostname=socket.gethostname()))
+
             if self.args.debug:
                 self.mqttc.enable_logger()
 
@@ -237,7 +203,7 @@ class RadonEyeReaderApp:
             if self.args.mqtt_ca_cert is not None:
                 self.mqttc.tls_set(ca_certs=self.args.mqtt_ca_cert)
 
-            self.mqttc.connect_async(self.args.mqtt_hostname, self.args.mqtt_port, 60)
+            self.mqttc.connect_async(self.args.mqtt_hostname, self.args.mqtt_port)
 
             self.mqttc.loop_start()
 
@@ -275,52 +241,58 @@ class RadonEyeReaderApp:
             self.mqttc.publish(discovery_topic, discovery_event, retain=self.args.discovery_retain)
 
     def print_sensor_data(self, data):
-        print("{}".format(json.dumps(data)))
-        sys.stdout.flush()
+        print("{}".format(json.dumps(data)), flush=True)
 
     def handle_sensor_error(self, addr, error):
         print(
-            "ERROR: device {}: unable to obtain sensor data due to error: {}".format(addr, error),
+            "ERROR: DEV {}: unable to obtain sensor data due to error: {}".format(addr, error),
             file=sys.stderr,
+            flush=True,
         )
-        sys.stderr.flush()
 
     def handle_device_event_error(self, addr, error):
         print(
-            "ERROR: device {}: unable to publish device event data to MQTT due to error: {}".format(
+            "ERROR: DEV {}: unable to publish device event data to MQTT due to error: {}".format(
                 addr, error
             ),
             file=sys.stderr,
+            flush=True,
         )
-        sys.stderr.flush()
 
     def handle_discovery_event_error(self, addr, error):
         print(
-            "ERROR: device {}: unable to publish discovery event data to MQTT due to error: {}".format(
+            "ERROR: DEV {}: unable to publish discovery event data to MQTT due to error: {}".format(
                 addr, error
             ),
             file=sys.stderr,
+            flush=True,
         )
-        sys.stderr.flush()
 
-    def run(self):
+    async def run(self):
         if self.args.mqtt:
             self.mqtt_init()
 
         while True:
-            for addr in self.args.addresses:
-                reader = RadonEyeReader(self.logger, self.adapter, addr, self.args.timeout)
+            for address in self.args.addresses:
+                reader = RadonEyeReader(address, self.args.connect_timeout, self.args.read_timeout)
 
                 data = None
 
                 attempt = self.args.retries
                 while attempt != 0:
                     try:
-                        data = reader.read_sensor_data()
+                        data = await reader.read_sensor_data()
                         attempt = 0
                         self.print_sensor_data(data)
                     except Exception as error:
-                        self.handle_sensor_error(addr, error)
+                        self.handle_sensor_error(address, error)
+                        if self.args.restart_bluetooth:
+                            print(
+                                "WARNING: Restarting bluetooth stack...",
+                                file=sys.stderr,
+                                flush=True,
+                            )
+                            os.system(self.args.restart_bluetooth_cmd)
                         attempt = attempt - 1
 
                 if self.args.mqtt and (data is not None):
@@ -328,11 +300,11 @@ class RadonEyeReaderApp:
                         try:
                             self.publish_discovery_event(data)
                         except Exception as error:
-                            self.handle_discovery_event_error(addr, error)
+                            self.handle_discovery_event_error(address, error)
                     try:
                         self.publish_device_event(data)
                     except Exception as error:
-                        self.handle_device_event_error(addr, error)
+                        self.handle_device_event_error(address, error)
 
             if self.args.daemon:
                 time.sleep(self.args.interval)
@@ -343,10 +315,9 @@ class RadonEyeReaderApp:
             self.mqttc.loop_stop()
 
 
-def main():
-    app = RadonEyeReaderApp()
-    app.run()
+async def main():
+    await RadonEyeReaderApp().run()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

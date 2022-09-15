@@ -4,33 +4,42 @@ Ecosense RadonEye reader with MQTT and Home Assistant support with automatic dis
 
 ## Installation
 
+Requires Python 3.x and has been tested to work well on macOS and Linux. Keep in mind, device
+addresses are different between macOS (uuid like) and Linux (mac like).
+
+Python `bleak` BLE library is used as the most stable, portable and easy installable (no complex
+build toolchain is needed). If you wanted to check with `pygatt` then checkout version `v1.0.0`.
+
 Install dependencies:
 
 ```
-pip3 install pygatt paho-mqtt
+pip3 install asyncio bleak paho-mqtt
 ```
 
-Usage:
+## Usage
 
 ```
 radoneye-reader.py --help
-usage: radon-eye-reader.py [-h] [--timeout TIMEOUT] [--retries RETRIES] [--debug] [--daemon]
-                           [--mqtt] [--discovery] [--mqtt-hostname MQTT_HOSTNAME]
-                           [--mqtt-port MQTT_PORT] [--mqtt-username MQTT_USERNAME]
-                           [--mqtt-password MQTT_PASSWORD] [--mqtt-ca-cert MQTT_CA_CERT]
-                           [--device-topic DEVICE_TOPIC] [--discovery-topic DISCOVERY_TOPIC]
-                           [--device-retain] [--discovery-retain] [--interval INTERVAL]
-                           [--expire-after EXPIRE_AFTER] [--force-update]
-                           addr [addr ...]
+usage: radoneye-reader.py [-h] [--connect-timeout CONNECT_TIMEOUT] [--read-timeout READ_TIMEOUT] [--retries RETRIES]
+                          [--debug] [--daemon] [--mqtt] [--discovery] [--mqtt-hostname MQTT_HOSTNAME]
+                          [--mqtt-port MQTT_PORT] [--mqtt-username MQTT_USERNAME] [--mqtt-password MQTT_PASSWORD]
+                          [--mqtt-ca-cert MQTT_CA_CERT] [--device-topic DEVICE_TOPIC]
+                          [--discovery-topic DISCOVERY_TOPIC] [--device-retain] [--discovery-retain]
+                          [--interval INTERVAL] [--expire-after EXPIRE_AFTER] [--force-update] [--restart-bluetooth]
+                          [--restart-bluetooth-cmd RESTART_BLUETOOTH_CMD]
+                          addr [addr ...]
 
 Reads Ecosense RadonEye device sensor data
 
 positional arguments:
   addr                  device address
 
-options:
+optional arguments:
   -h, --help            show this help message and exit
-  --timeout TIMEOUT     device connect timeout
+  --connect-timeout CONNECT_TIMEOUT
+                        device connect timeout
+  --read-timeout READ_TIMEOUT
+                        device sendor data read timeout
   --retries RETRIES     device read attempt count
   --debug               debug mode
   --daemon              run continuosly
@@ -54,9 +63,11 @@ options:
   --discovery-retain    retain discovery events
   --interval INTERVAL   device poll interval in seconds
   --expire-after EXPIRE_AFTER
-                        Defines the number of seconds after the sensor's state expires,
-                        if it's not updated
+                        Defines the number of seconds after the sensor's state expires, if it's not updated
   --force-update        Sends update events even if the value hasn't changed
+  --restart-bluetooth   Try to restart bluetooth stack on bluetooth error
+  --restart-bluetooth-cmd RESTART_BLUETOOTH_CMD
+                        Command to execute when bluetooth stack restart is needed
 ```
 
 Environment variables:

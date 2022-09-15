@@ -246,7 +246,7 @@ class RadonEyeReaderApp:
                 attr=attr.get("name"),
                 unit=attr.get("unit"),
                 state_topic=device_topic,
-                state_name=attr.get("id")
+                state_name=attr.get("id"),
             )
 
             self.mqttc.publish(discovery_topic, discovery_event, retain=self.args.discovery_retain)
@@ -293,6 +293,10 @@ class RadonEyeReaderApp:
 
         while True:
             for address in self.args.addresses:
+                print(
+                    f"INFO: DEV {address}: reading device sensor data", file=sys.stderr, flush=True
+                )
+
                 reader = RadonEyeReader(address, self.args.connect_timeout, self.args.read_timeout)
 
                 data = None
@@ -326,6 +330,11 @@ class RadonEyeReaderApp:
                         self.handle_device_event_error(address, error)
 
             if self.args.daemon:
+                print(
+                    "INFO: sleeping for {} sec...".format(self.args.interval),
+                    file=sys.stderr,
+                    flush=True,
+                )
                 await asyncio.sleep(self.args.interval)
             else:
                 break

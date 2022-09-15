@@ -165,7 +165,10 @@ class RadonEyeReaderApp:
         parser.add_argument(
             "--expire-after",
             type=int,
-            help="Defines the number of seconds after the sensor's state expires, if it's not updated",
+            help=(
+                "Defines the number of seconds after the sensor's state expires, if it's not"
+                " updated"
+            ),
         )
         parser.add_argument(
             "--force-update",
@@ -257,9 +260,8 @@ class RadonEyeReaderApp:
 
     async def handle_sensor_error(self, addr, error, attempt):
         print(
-            "ERROR: DEV {}: unable to obtain sensor data from {} attempt due to error: {}".format(
-                addr, attempt, error
-            ),
+            f"ERROR: DEV {addr}: unable to obtain sensor data from {attempt} attempt due to error:"
+            f" {type(error).__name__}: {error}",
             file=sys.stderr,
             flush=True,
         )
@@ -276,18 +278,16 @@ class RadonEyeReaderApp:
 
     def handle_device_event_error(self, addr, error):
         print(
-            "ERROR: DEV {}: unable to publish device event data to MQTT due to error: {}".format(
-                addr, error
-            ),
+            f"ERROR: DEV {addr}: unable to publish device event data to MQTT due to error:"
+            f" {type(error).__name__}: {error}",
             file=sys.stderr,
             flush=True,
         )
 
     def handle_discovery_event_error(self, addr, error):
         print(
-            "ERROR: DEV {}: unable to publish discovery event data to MQTT due to error: {}".format(
-                addr, error
-            ),
+            f"ERROR: DEV {addr}: unable to publish discovery event data to MQTT due to error:"
+            f" {type(error).__name__}: {error}",
             file=sys.stderr,
             flush=True,
         )
@@ -324,7 +324,8 @@ class RadonEyeReaderApp:
                         attempt = 0
                     except Exception as error:
                         await self.handle_sensor_error(address, error, attempt)
-                        traceback.print_exc(file=sys.stderr)
+                        if self.args.debug:
+                            traceback.print_exc(file=sys.stderr)
                         attempt = attempt + 1
 
                 if data is not None:
@@ -344,7 +345,7 @@ class RadonEyeReaderApp:
 
             if self.args.daemon:
                 print(
-                    "INFO: sleeping for {} sec...".format(self.args.interval),
+                    f"INFO: sleeping for {self.args.interval} sec...",
                     file=sys.stderr,
                     flush=True,
                 )

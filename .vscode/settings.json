@@ -1,5 +1,5 @@
 {
     "python.formatting.provider": "black",
-    "python.formatting.blackArgs": ["-l", "100"],
+    "python.formatting.blackArgs": ["-l", "100", "--preview"],
     "editor.formatOnSave": true
 }

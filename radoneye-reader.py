@@ -254,12 +254,24 @@ class RadonEyeReaderApp:
     def print_sensor_data(self, data):
         print("{}".format(json.dumps(data)), flush=True)
 
-    def handle_sensor_error(self, addr, error):
+    async def handle_sensor_error(self, addr, error, attempt):
         print(
-            "ERROR: DEV {}: unable to obtain sensor data due to error: {}".format(addr, error),
+            "ERROR: DEV {}: unable to obtain sensor data from {} attempt due to error: {}".format(
+                addr, attempt, error
+            ),
             file=sys.stderr,
             flush=True,
         )
+
+        # after last failed attempt there is no point to try to wait or restart bluetooth
+        if attempt < self.args.attempts:
+            # restart bluetooth before last attempt if enabled
+            if attempt == self.args.attempts - 1 and self.args.restart_bluetooth:
+                self.restart_bluetooth_stack()
+                await asyncio.sleep(self.args.restart_bluetooth_delay)
+            # otherwise just wait
+            else:
+                await asyncio.sleep(self.args.reconnect_delay)
 
     def handle_device_event_error(self, addr, error):
         print(
@@ -301,22 +313,19 @@ class RadonEyeReaderApp:
 
                 data = None
 
-                attempt = self.args.attempts
-                while attempt != 0:
+                attempt = 1
+                while attempt > 0 and attempt <= self.args.attempts:
                     try:
-                        data = await reader.read_sensor_data()
+                        data = await asyncio.wait_for(
+                            reader.read_sensor_data(),
+                            timeout=self.args.connect_timeout + self.args.read_timeout,
+                        )
                         attempt = 0
-                        self.print_sensor_data(data)
                     except Exception as error:
-                        self.handle_sensor_error(address, error)
-                        attempt = attempt - 1
-                        if attempt != 0:
-                            # make last attempt to restart bluetooth stack if restart is enabled
-                            if attempt == 1 and self.args.restart_bluetooth:
-                                self.restart_bluetooth_stack()
-                                await asyncio.sleep(self.args.restart_bluetooth_delay)
-                            else:
-                                await asyncio.sleep(self.args.reconnect_delay)
+                        await self.handle_sensor_error(address, error, attempt)
+                        attempt = attempt + 1
+
+                self.print_sensor_data(data)
 
                 if self.args.mqtt and (data is not None):
                     if self.args.discovery:

@@ -18,6 +18,14 @@ pip3 install asyncio bleak paho-mqtt
 
 ## Usage
 
+Discover hardware IDs for RadonEye devices (different for macOS and Linux):
+
+```
+$ ./radoneye-scan.py
+```
+
+All available options for reader itself:
+
 ```
 $ ./radoneye-reader.py --help
 usage: radoneye-reader.py [-h] [--connect-timeout CONNECT_TIMEOUT] [--read-timeout READ_TIMEOUT]
@@ -99,6 +107,61 @@ Read continuosly and publish to MQTT with Home Assistant auto discovery:
 
 RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really
 useful.
+
+## Daemonization using Systemd on Linux
+
+Below is the example of naive quick setup with python modules installed in system under `root` user
+and `radoneye-reader` running under `root` as well with MQTT and Home Assistant (Core) running on
+the same host.
+
+If you wanted to run it under different user with dedicated environment then look on Home Assistant
+example: https://www.home-assistant.io/installation/linux#create-an-account
+
+Install radoneye-reader:
+
+```
+apt-get install git python3 python3-pip
+mkdir -p /srv/
+cd /srv/
+git clone https://github.com/sormy/radoneye-reader.git
+cd radoneye-reader
+pip3 install asyncio bleak paho-mqtt
+```
+
+Add service unit:
+
+```
+nano /etc/systemd/system/radoneye.service
+
+[Unit]
+Description=RadonEye sensor reader
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=python3 /srv/radoneye-reader/radoneye-reader.py --mqtt --discovery --daemon <addr1> <addr2> <addr3>
+Environment=MQTT_USERNAME=radoneye
+Environment=MQTT_PASSWORD=secret
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable service:
+
+```
+systemctl daemon-reload
+systemctl enable radoneye
+systemctl start radoneye
+```
+
+Check service status and logs:
+
+```
+systemctl status radoneye
+journalctl -f -u radoneye
+```
 
 ## Troubleshooting
 

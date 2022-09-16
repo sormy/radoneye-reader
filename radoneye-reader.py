@@ -15,20 +15,7 @@ from struct import unpack
 from string import Template
 
 
-class RadonEyeReader:
-    UUID_COMMAND = "00001524-0000-1000-8000-00805f9b34fb"
-    UUID_CURRENT = "00001525-0000-1000-8000-00805f9b34fb"
-
-    COMMAND_CURRENT = 0x40
-
-    VENDOR = "Ecosense"
-    DEVICE = "RadonEye"
-
-    def __init__(self, address: str, connect_timeout: int, read_timeout: int):
-        self.address = address
-        self.connect_timeout = connect_timeout
-        self.read_timeout = read_timeout
-
+class RadonEyeParser:
     def read_short(self, data: bytearray, start: int) -> int:
         return unpack("<H", data[slice(start, start + 2)])[0]
 
@@ -38,8 +25,7 @@ class RadonEyeReader:
     def to_pci_l(self, value_bq_m3: int) -> float:
         return round(value_bq_m3 / 37, 2)
 
-    def parse_raw_data(self, data: bytearray) -> dict:
-        timestamp = str(datetime.datetime.now())
+    def parse_sensor_data(self, data: bytearray) -> dict:
         serial = self.read_str(data, 8, 3) + self.read_str(data, 2, 6) + self.read_str(data, 11, 4)
         model = self.read_str(data, 16, 6)
         version = self.read_str(data, 22, 6)
@@ -53,13 +39,9 @@ class RadonEyeReader:
         peak_pci_l = self.to_pci_l(peak_bq_m3)
 
         return {
-            "timestamp": timestamp,
             "serial": serial,
-            "address": self.address,
-            "vendor": self.VENDOR,
             "model": model,
             "version": version,
-            "device": self.DEVICE,
             "latest_bq_m3": latest_bq_m3,
             "latest_pci_l": latest_pci_l,
             "day_avg_bq_m3": day_avg_bq_m3,
@@ -70,12 +52,37 @@ class RadonEyeReader:
             "peak_pci_l": peak_pci_l,
         }
 
+
+class RadonEyeReader:
+    UUID_COMMAND = "00001524-0000-1000-8000-00805f9b34fb"
+    UUID_CURRENT = "00001525-0000-1000-8000-00805f9b34fb"
+
+    COMMAND_CURRENT = 0x40
+
+    VENDOR = "Ecosense"
+    DEVICE = "RadonEye"
+
+    def __init__(self, address: str, connect_timeout: int, read_timeout: int):
+        self.address = address
+        self.connect_timeout = connect_timeout
+        self.read_timeout = read_timeout
+        self.parser = RadonEyeParser()
+
+    def decode_sensor_data(self, data: bytearray):
+        return {
+            "timestamp": str(datetime.datetime.now()),
+            "vendor": self.VENDOR,
+            "device": self.DEVICE,
+            "address": self.address,
+            **self.parser.parse_sensor_data(data),
+        }
+
     async def read_sensor_data(self) -> dict:
         loop = asyncio.get_running_loop()
         future = loop.create_future()
 
         def callback(sender: int, data: bytearray):
-            future.set_result(self.parse_raw_data(data))
+            future.set_result(self.decode_sensor_data(data))
 
         async with BleakClient(self.address, timout=self.connect_timeout) as client:
             await client.start_notify(self.UUID_CURRENT, callback)
@@ -258,10 +265,15 @@ class RadonEyeReaderApp:
     def print_sensor_data(self, data):
         print("{}".format(json.dumps(data)), flush=True)
 
+    def str_err(error: Exception):
+        type_str = type(error).__name__
+        msg_str = str(error)
+        return f"[{type_str}]: {msg_str}" if msg_str else f"[{type_str}]"
+
     async def handle_sensor_error(self, addr, error, attempt):
         print(
             f"ERROR: DEV {addr}: unable to obtain sensor data from {attempt} attempt due to error:"
-            f" {type(error).__name__}: {error}",
+            f" {self.str_err(error)}",
             file=sys.stderr,
             flush=True,
         )
@@ -279,7 +291,7 @@ class RadonEyeReaderApp:
     def handle_device_event_error(self, addr, error):
         print(
             f"ERROR: DEV {addr}: unable to publish device event data to MQTT due to error:"
-            f" {type(error).__name__}: {error}",
+            f" {self.str_err(error)}",
             file=sys.stderr,
             flush=True,
         )
@@ -287,7 +299,7 @@ class RadonEyeReaderApp:
     def handle_discovery_event_error(self, addr, error):
         print(
             f"ERROR: DEV {addr}: unable to publish discovery event data to MQTT due to error:"
-            f" {type(error).__name__}: {error}",
+            f" {self.str_err(error)}",
             file=sys.stderr,
             flush=True,
         )

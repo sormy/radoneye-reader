@@ -1,0 +1,5 @@
+async-timeout==4.0.2
+asyncio==3.4.3
+bleak==0.17.0
+dbus-fast==1.4.0
+paho-mqtt==1.6.1

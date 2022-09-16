@@ -265,7 +265,7 @@ class RadonEyeReaderApp:
     def print_sensor_data(self, data):
         print("{}".format(json.dumps(data)), flush=True)
 
-    def str_err(error: Exception):
+    def str_err(self, error: Exception):
         type_str = type(error).__name__
         msg_str = str(error)
         return f"[{type_str}]: {msg_str}" if msg_str else f"[{type_str}]"

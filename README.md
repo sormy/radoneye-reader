@@ -124,6 +124,7 @@ This script is inspired by these examples:
 - https://github.com/merbanan/rtl_433/blob/master/examples/rtl_433_mqtt_hass.py (example of hass
   integration using mqtt)
 - https://github.com/ceandre/radonreader (reader for older devices RD200)
+- https://github.com/EtoTen/radonreader (reader for older and newer devices RD200)
 
 ## Device Support
 

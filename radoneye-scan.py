@@ -10,8 +10,8 @@ async def main():
     await asyncio.sleep(5)
 
     for device in devices:
-        if device.name.startswith("FR:"):
-            print(f"{device.address}: {device.name}")
+        if device.name and device.name.startswith("FR:"):
+            print(f"{device.address} {device.name}")
 
 
 asyncio.run(main())

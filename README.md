@@ -2,7 +2,7 @@
 
 Ecosense RadonEye reader with MQTT and Home Assistant support with automatic discovery.
 
-## Installation
+## Dependencies
 
 Requires Python 3.x and has been tested to work well on macOS and Linux. Keep in mind, device
 addresses are different between macOS (uuid like) and Linux (mac like).
@@ -10,10 +10,50 @@ addresses are different between macOS (uuid like) and Linux (mac like).
 Python `bleak` BLE library is used as the most stable, portable and easy installable (no complex
 build toolchain is needed). If you wanted to check with `pygatt` then checkout version `v1.0.0`.
 
-Install dependencies:
+## Installation
 
+### System-level
+
+Example:
+
+```sh
+apt-get install git python3 python3-pip
+mkdir -p /srv/
+cd /srv/
+git clone https://github.com/sormy/radoneye-reader.git
+cd radoneye-reader
+pip3 install -r requirements.txt
+ln -sf /srv/radoneye-reader/radoneye-reader.py /usr/local/bin/radoneye-reader
+ln -sf /srv/radoneye-reader/radoneye-scan.py /usr/local/bin/radoneye-scan
+ln -sf /srv/radoneye-reader/radoneye-dumper.py /usr/local/bin/radoneye-dumper
 ```
-$ pip3 install asyncio bleak paho-mqtt
+
+Usage:
+
+```sh
+$ radoneye-reader ...
+```
+
+### Environment-level
+
+Example:
+
+```sh
+apt-get install git python3 python3-pip
+mkdir -p /srv/
+cd /srv/
+git clone https://github.com/sormy/radoneye-reader.git
+cd radoneye-reader
+python3 -m venv .
+source bin/activate
+pip3 install -r requirements.txt
+deactivate
+```
+
+Usage:
+
+```sh
+$ /srv/radoneye-reader/bin/python3 /srv/radoneye-reader/radoneye-reader.py ...
 ```
 
 ## Usage
@@ -105,10 +145,17 @@ Read continuosly and publish to MQTT with Home Assistant auto discovery:
 ./radoneye-reader.py --mqtt --discovery --daemon <device1_addr> <device2_addr> <...>
 ```
 
+Dump detailed RadonEye sensor data (most for debugging purposes):
+
+```
+$ ./radoneye-dumper.py
+usage: radoneye-dumper.py [-h] [--delay DELAY] address
+```
+
 RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really
 useful.
 
-## Daemonization using Systemd on Linux
+## Daemonization using systemd on Linux
 
 Below is the example of naive quick setup with python modules installed in system under `root` user
 and `radoneye-reader` running under `root` as well with MQTT and Home Assistant (Core) running on
@@ -117,22 +164,29 @@ the same host.
 If you wanted to run it under different user with dedicated environment then look on Home Assistant
 example: https://www.home-assistant.io/installation/linux#create-an-account
 
-Install radoneye-reader:
+Install radoneye-reader as venv:
 
-```
+```sh
 apt-get install git python3 python3-pip
 mkdir -p /srv/
 cd /srv/
 git clone https://github.com/sormy/radoneye-reader.git
 cd radoneye-reader
-pip3 install asyncio bleak paho-mqtt
+python3 -m venv .
+source bin/activate
+pip3 install -r requirements.txt
+deactivate
 ```
 
 Add service unit:
 
-```
+```sh
 nano /etc/systemd/system/radoneye.service
+```
 
+with content:
+
+```ini
 [Unit]
 Description=RadonEye sensor reader
 After=network-online.target
@@ -140,7 +194,8 @@ After=network-online.target
 [Service]
 Type=simple
 User=root
-ExecStart=python3 /srv/radoneye-reader/radoneye-reader.py --mqtt --discovery --daemon <addr1> <addr2> <addr3>
+ExecStart=/srv/radoneye-reader/bin/python3 /srv/radoneye-reader/radoneye-reader.py \
+  --mqtt --discovery --daemon <addr1> <addr2> <addr3>
 Environment=MQTT_USERNAME=radoneye
 Environment=MQTT_PASSWORD=secret
 
@@ -150,7 +205,7 @@ WantedBy=multi-user.target
 
 Enable service:
 
-```
+```sh
 systemctl daemon-reload
 systemctl enable radoneye
 systemctl start radoneye
@@ -158,7 +213,7 @@ systemctl start radoneye
 
 Check service status and logs:
 
-```
+```sh
 systemctl status radoneye
 journalctl -f -u radoneye
 ```

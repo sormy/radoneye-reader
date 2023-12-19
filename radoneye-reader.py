@@ -167,6 +167,12 @@ class RadonEyeReaderApp:
             "--discovery-retain", action="store_true", help="retain discovery events"
         )
         parser.add_argument(
+            "--discovery-delay",
+            type=int,
+            default=1,
+            help="Delay after discovery event before sending device event",
+        )
+        parser.add_argument(
             "--interval", type=int, default=5 * 60, help="device poll interval in seconds"
         )
         parser.add_argument(
@@ -202,7 +208,7 @@ class RadonEyeReaderApp:
 
         args = parser.parse_args()
 
-        args.addresses = args.addresses if type(args.addresses) is list else [args.addresses]
+        args.addresses = args.addresses if isinstance(args.addresses, list) else [args.addresses]
 
         if not args.mqtt_username and "MQTT_USERNAME" in os.environ:
             args.mqtt_username = os.environ["MQTT_USERNAME"]
@@ -346,6 +352,7 @@ class RadonEyeReaderApp:
                 if data is not None and self.args.mqtt and self.args.discovery:
                     try:
                         self.publish_discovery_event(data)
+                        await asyncio.sleep(self.args.discovery_delay)
                     except Exception as error:
                         self.handle_discovery_event_error(address, error)
 

@@ -68,14 +68,18 @@ All available options for reader itself:
 
 ```
 $ ./radoneye-reader.py --help
-usage: radoneye-reader.py [-h] [--connect-timeout CONNECT_TIMEOUT] [--read-timeout READ_TIMEOUT]
-                          [--reconnect-delay RECONNECT_DELAY] [--attempts ATTEMPTS] [--debug]
-                          [--daemon] [--mqtt] [--discovery] [--mqtt-hostname MQTT_HOSTNAME]
-                          [--mqtt-port MQTT_PORT] [--mqtt-username MQTT_USERNAME]
-                          [--mqtt-password MQTT_PASSWORD] [--mqtt-ca-cert MQTT_CA_CERT]
-                          [--device-topic DEVICE_TOPIC] [--discovery-topic DISCOVERY_TOPIC]
-                          [--device-retain] [--discovery-retain] [--interval INTERVAL]
-                          [--expire-after EXPIRE_AFTER] [--force-update] [--restart-bluetooth]
+usage: radoneye-reader.py [-h] [--connect-timeout CONNECT_TIMEOUT]
+                          [--read-timeout READ_TIMEOUT]
+                          [--reconnect-delay RECONNECT_DELAY] [--attempts ATTEMPTS]
+                          [--debug] [--daemon] [--mqtt] [--discovery]
+                          [--mqtt-hostname MQTT_HOSTNAME] [--mqtt-port MQTT_PORT]
+                          [--mqtt-username MQTT_USERNAME]
+                          [--mqtt-password MQTT_PASSWORD]
+                          [--mqtt-ca-cert MQTT_CA_CERT] [--device-topic DEVICE_TOPIC]
+                          [--discovery-topic DISCOVERY_TOPIC] [--device-retain]
+                          [--discovery-retain] [--discovery-delay DISCOVERY_DELAY]
+                          [--interval INTERVAL] [--expire-after EXPIRE_AFTER]
+                          [--force-update] [--restart-bluetooth]
                           [--restart-bluetooth-delay RESTART_BLUETOOTH_DELAY]
                           [--restart-bluetooth-cmd RESTART_BLUETOOTH_CMD]
                           addr [addr ...]
@@ -85,7 +89,7 @@ Reads Ecosense RadonEye device sensor data
 positional arguments:
   addr                  device address
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --connect-timeout CONNECT_TIMEOUT
                         device connect timeout in seconds (default: 10)
@@ -97,7 +101,8 @@ optional arguments:
   --debug               debug mode (default: False)
   --daemon              run continuosly (default: False)
   --mqtt                enable MQTT device state publishing (default: False)
-  --discovery           enable MQTT home assistant discovery event publishing (default: False)
+  --discovery           enable MQTT home assistant discovery event publishing
+                        (default: False)
   --mqtt-hostname MQTT_HOSTNAME
                         MQTT hostname (default: localhost)
   --mqtt-port MQTT_PORT
@@ -112,20 +117,27 @@ optional arguments:
                         MQTT device state topic (default:
                         radon_eye/{hostname}/devices/{vendor}/{model}/{serial})
   --discovery-topic DISCOVERY_TOPIC
-                        MQTT home assistant discovery topic (default: homeassistant/sensor)
+                        MQTT home assistant discovery topic (default:
+                        homeassistant/sensor)
   --device-retain       retain device events (default: False)
   --discovery-retain    retain discovery events (default: False)
+  --discovery-delay DISCOVERY_DELAY
+                        Delay after discovery event before sending device event
+                        (default: 1)
   --interval INTERVAL   device poll interval in seconds (default: 300)
   --expire-after EXPIRE_AFTER
-                        Defines the number of seconds after the sensor's state expires, if it's
-                        not updated (default: None)
-  --force-update        Sends update events even if the value hasn't changed (default: False)
-  --restart-bluetooth   Try to restart bluetooth stack on bluetooth error (default: False)
+                        Defines the number of seconds after the sensor's state
+                        expires, if it's not updated (default: None)
+  --force-update        Sends update events even if the value hasn't changed (default:
+                        False)
+  --restart-bluetooth   Try to restart bluetooth stack on bluetooth error (default:
+                        False)
   --restart-bluetooth-delay RESTART_BLUETOOTH_DELAY
-                        Delay in seconds after bluetooth stack has been restarted (default: 10)
+                        Delay in seconds after bluetooth stack has been restarted
+                        (default: 10)
   --restart-bluetooth-cmd RESTART_BLUETOOTH_CMD
-                        Command to execute when bluetooth stack restart is needed (default:
-                        service bluetooth restart)
+                        Command to execute when bluetooth stack restart is needed
+                        (default: service bluetooth restart)
 ```
 
 Environment variables:

@@ -164,6 +164,13 @@ $ ./radoneye-dumper.py
 usage: radoneye-dumper.py [-h] [--timeout TIMEOUT] address
 ```
 
+Trigger beep sound on RadonEye device:
+
+```
+$ ./radoneye-beeper.py
+usage: radoneye-beeper.py [-h] [--times TIMES] address
+```
+
 RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really
 useful.
 

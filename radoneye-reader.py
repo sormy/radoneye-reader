@@ -13,6 +13,7 @@ from bleak import BleakClient
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from struct import unpack
 from string import Template
+import math
 
 
 class RadonEyeParser:
@@ -35,6 +36,14 @@ class RadonEyeParser:
         day_avg_pci_l = self.to_pci_l(day_avg_bq_m3)
         month_avg_bq_m3 = self.read_short(data, 37)
         month_avg_pci_l = self.to_pci_l(month_avg_bq_m3)
+        counts_current = self.read_short(data, 39)
+        counts_previous = self.read_short(data, 41)
+        counts_str = f"{counts_current}/{counts_previous}"
+        uptime_minutes = self.read_short(data, 43)
+        uptime_days = math.floor(uptime_minutes / (60 * 24))
+        uptime_hours = math.floor(uptime_minutes % (60 * 24) / 60)
+        uptime_mins = uptime_minutes % 60
+        uptime_str = f"{uptime_days}d {uptime_hours:02}:{uptime_mins:02}"
         peak_bq_m3 = self.read_short(data, 51)
         peak_pci_l = self.to_pci_l(peak_bq_m3)
 
@@ -50,6 +59,11 @@ class RadonEyeParser:
             "month_avg_pci_l": month_avg_pci_l,
             "peak_bq_m3": peak_bq_m3,
             "peak_pci_l": peak_pci_l,
+            "counts_current": counts_current,
+            "counts_previous": counts_previous,
+            "counts_str": counts_str,
+            "uptime_minutes": uptime_minutes,
+            "uptime_str": uptime_str,
         }
 
 

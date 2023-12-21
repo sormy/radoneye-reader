@@ -161,7 +161,7 @@ Dump detailed RadonEye sensor data (most for debugging purposes):
 
 ```
 $ ./radoneye-dumper.py
-usage: radoneye-dumper.py [-h] [--delay DELAY] address
+usage: radoneye-dumper.py [-h] [--timeout TIMEOUT] address
 ```
 
 RadonEye updates last radon level every 10 minutes, so reading sensor too often is not really
